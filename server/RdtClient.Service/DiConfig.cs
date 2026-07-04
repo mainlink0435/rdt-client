@@ -78,6 +78,7 @@ public static class DiConfig
         });
 
         services.AddTransient<RateLimitHandler>();
+        services.AddTransient<ConcurrencyLimitHandler>();
 
         services.AddHttpClient(RD_CLIENT)
                 .AddHttpMessageHandler<RateLimitHandler>()
@@ -86,10 +87,11 @@ public static class DiConfig
         // This likely works for most providers, but should be verified and then the providers changed
         // to this HTTP client for added resilience.
         services.AddHttpClient(TORBOX_CLIENT)
+                .AddHttpMessageHandler<ConcurrencyLimitHandler>()
                 .AddResilienceHandler("torbox_client_handler", ConfigureResiliencePipeline);
 
         services.AddHttpClient(TORBOX_CLIENT_SLOW)
-                .AddHttpMessageHandler<RateLimitHandler>()
+                .AddHttpMessageHandler<ConcurrencyLimitHandler>()
                 .AddResilienceHandler("torbox_client_handler_slow", ConfigureResiliencePipeline);
     }
 

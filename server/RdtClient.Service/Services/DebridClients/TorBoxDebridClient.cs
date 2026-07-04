@@ -15,7 +15,6 @@ public class TorBoxDebridClient(
     ILogger<TorBoxDebridClient> logger,
     IHttpClientFactory httpClientFactory,
     IDownloadableFileFilter fileFilter,
-    IRateLimitCoordinator coordinator,
     ISettings settings)
     : IDebridClient
 {
@@ -534,14 +533,10 @@ public class TorBoxDebridClient(
         }
         catch (TorBoxException ex) when (IsRateLimit(ex))
         {
-            coordinator.UpdateCooldown(TorBoxApiHost, TimeSpan.FromMinutes(2));
-
             throw new RateLimitException(ex.Message, TimeSpan.FromMinutes(2));
         }
         catch (Exception ex) when (ex.Message.Contains("slow_down", StringComparison.OrdinalIgnoreCase))
         {
-            coordinator.UpdateCooldown(TorBoxApiHost, TimeSpan.FromMinutes(2));
-
             throw new RateLimitException(ex.Message, TimeSpan.FromMinutes(2));
         }
     }
@@ -562,14 +557,10 @@ public class TorBoxDebridClient(
         }
         catch (TorBoxException ex) when (IsRateLimit(ex))
         {
-            coordinator.UpdateCooldown(TorBoxApiHost, TimeSpan.FromMinutes(2));
-
             throw new RateLimitException(ex.Message, TimeSpan.FromMinutes(2));
         }
         catch (Exception ex) when (ex.Message.Contains("slow_down", StringComparison.OrdinalIgnoreCase))
         {
-            coordinator.UpdateCooldown(TorBoxApiHost, TimeSpan.FromMinutes(2));
-
             throw new RateLimitException(ex.Message, TimeSpan.FromMinutes(2));
         }
     }
