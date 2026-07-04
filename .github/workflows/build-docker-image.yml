@@ -64,7 +64,6 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}
             ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}
 
       - name: Build and push by digest
@@ -73,7 +72,7 @@ jobs:
         with:
           context: .
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
@@ -108,7 +107,6 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}
             ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}
           tags: |
             type=schedule
@@ -123,8 +121,8 @@ jobs:
         run: |         
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ steps.meta.outputs.json }}') \
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}@${{ needs.build.outputs.digest-amd64 }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}@${{ needs.build.outputs.digest-arm64 }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}@${{ needs.build.outputs.digest-amd64 }} \
+            ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}@${{ needs.build.outputs.digest-arm64 }}
       
       - name: Checkout code
         uses: actions/checkout@v6
