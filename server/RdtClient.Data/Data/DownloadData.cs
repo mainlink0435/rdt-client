@@ -1,6 +1,6 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using RdtClient.Data.Models.Data;
 using Download = RdtClient.Data.Models.Data.Download;
 
@@ -299,17 +299,30 @@ public class DownloadData(DataContext dataContext, ILogger<DownloadData>? logger
 
     private static Boolean IsDuplicateDownloadViolation(DbUpdateException exception)
     {
-        var sqliteException = exception.InnerException as SqliteException;
+        // PostgreSQL: 23505 = unique_violation
+        if (exception.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
+        {
+            return true;
+        }
 
-        return sqliteException?.SqliteExtendedErrorCode == 2067
-               || sqliteException?.Message.Contains("UNIQUE constraint failed: Downloads.TorrentId, Downloads.Path", StringComparison.Ordinal) == true;
+        // Fallback: check message for any provider
+        var message = exception.InnerException?.Message ?? exception.Message;
+
+        return message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase)
+               && message.Contains("Downloads", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Boolean IsForeignKeyViolation(DbUpdateException exception)
     {
-        var sqliteException = exception.InnerException as SqliteException;
+        // PostgreSQL: 23503 = foreign_key_violation
+        if (exception.InnerException is PostgresException pgEx && pgEx.SqlState == "23503")
+        {
+            return true;
+        }
 
-        return sqliteException?.SqliteExtendedErrorCode == 787
-               || sqliteException?.Message.Contains("FOREIGN KEY constraint failed", StringComparison.Ordinal) == true;
+        // Fallback: check message for any provider
+        var message = exception.InnerException?.Message ?? exception.Message;
+
+        return message.Contains("foreign key constraint", StringComparison.OrdinalIgnoreCase);
     }
 }

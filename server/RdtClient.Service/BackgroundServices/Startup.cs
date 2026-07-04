@@ -1,10 +1,10 @@
-﻿using System.Reflection;
-using Microsoft.Data.Sqlite;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RdtClient.Data.Data;
+using RdtClient.Data.Models.Internal;
 using RdtClient.Service.Services;
 
 namespace RdtClient.Service.BackgroundServices;
@@ -19,17 +19,21 @@ public class Startup(IServiceProvider serviceProvider) : IHostedService
 
         using var scope = serviceProvider.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+        var appSettings = scope.ServiceProvider.GetRequiredService<AppSettings>();
 
         logger.LogWarning("Starting host on version {version}", version);
 
         var dbContext = scope.ServiceProvider.GetRequiredService<DataContext>();
-        await dbContext.Database.MigrateAsync(cancellationToken);
 
-        // Configure SQLite for better concurrency and performance
-        await dbContext.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", cancellationToken);
-        await dbContext.Database.ExecuteSqlRawAsync("PRAGMA synchronous=NORMAL;", cancellationToken);
-        await dbContext.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=5000;", cancellationToken);
-        await dbContext.Database.ExecuteSqlRawAsync("PRAGMA cache_size=-64000;", cancellationToken);
+        // Create the schema if it doesn't exist (overcome stale migration history)
+        await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+
+        // If PostgreSQL is configured, attempt to migrate data from SQLite
+        var pgConnectionString = appSettings.Database?.ConnectionString;
+        if (!String.IsNullOrWhiteSpace(pgConnectionString))
+        {
+            await SqliteToPostgresMigrator.MigrateIfNeeded(appSettings, logger, cancellationToken);
+        }
 
         var settings = scope.ServiceProvider.GetRequiredService<Settings>();
         await settings.Seed();
@@ -41,7 +45,6 @@ public class Startup(IServiceProvider serviceProvider) : IHostedService
     public Task StopAsync(CancellationToken cancellationToken)
     {
         Ready = false;
-        SqliteConnection.ClearAllPools();
 
         return Task.CompletedTask;
     }

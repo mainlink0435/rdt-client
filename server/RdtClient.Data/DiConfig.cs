@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RdtClient.Data.Data;
 using RdtClient.Data.Models.Internal;
@@ -9,13 +9,14 @@ public static class DiConfig
 {
     public static void Config(IServiceCollection services, AppSettings appSettings)
     {
-        if (String.IsNullOrWhiteSpace(appSettings.Database?.Path))
+        var connectionString = appSettings.Database?.ConnectionString;
+
+        if (String.IsNullOrWhiteSpace(connectionString))
         {
-            throw new("Invalid database path found in appSettings");
+            throw new("No PostgreSQL connection string found. Set Database:ConnectionString in appsettings.");
         }
 
-        var connectionString = $"Data Source={appSettings.Database.Path};Cache=Shared;Pooling=True;Command Timeout=30";
-        services.AddDbContext<DataContext>(options => options.UseSqlite(connectionString));
+        services.AddDbContext<DataContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped<DownloadData>();
         services.AddScoped<SettingData>();

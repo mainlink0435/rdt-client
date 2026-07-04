@@ -1,18 +1,52 @@
 version: '3.3'
 
 services:
+    postgres:
+        image: postgres:16-alpine
+        container_name: rdtclient-postgres
+        restart: always
+        environment:
+            POSTGRES_DB: rdtclient
+            POSTGRES_USER: rdtclient
+            POSTGRES_PASSWORD: CHANGEME
+        volumes:
+            - ./data/postgres:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U rdtclient -d rdtclient"]
+            interval: 10s
+            retries: 5
+            start_period: 30s
+            timeout: 5s
+        logging:
+            driver: json-file
+            options:
+                max-size: 10m
+        # Uncomment to expose PG port externally (for admin tools)
+        # ports:
+        #     - '5432:5432'
+
     rdtclient:
-        image: rogerfar/rdtclient
-        container_name: rdtclient
+        # image: rogerfar/rdtclient
         # build:
-        #     context: .
+        #     context: ..
         #     dockerfile: Dockerfile
+        build:
+            context: ..
+            dockerfile: Dockerfile
+        container_name: rdtclient
         environment:
             - PUID=1001
             - PGID=1001
+            # Override the connection string from appsettings.json
+            - Database__ConnectionString=Host=postgres;Port=5432;Database=rdtclient;Username=rdtclient;Password=CHANGEME
+            # Uncomment for external PostgreSQL (not in this compose file):
+            # - Database__ConnectionString=Host=your-pg-host;Port=5432;Database=rdtclient;Username=rdtclient;Password=CHANGEME
         volumes:
             - ${PWD}/data/downloads:/data/downloads
             - ${PWD}/data/db:/data/db
+        depends_on:
+            postgres:
+                condition: service_healthy
         restart: always
         logging:
             driver: json-file

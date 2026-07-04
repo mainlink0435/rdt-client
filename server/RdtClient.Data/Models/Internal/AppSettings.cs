@@ -1,4 +1,4 @@
-﻿namespace RdtClient.Data.Models.Internal;
+namespace RdtClient.Data.Models.Internal;
 
 public class AppSettings
 {
@@ -24,4 +24,10 @@ public class AppSettingsLoggingFile
 public class AppSettingsDatabase
 {
     public String? Path { get; set; }
+
+    /// <summary>
+    /// PostgreSQL connection string. If set, overrides <see cref="Path"/>.
+    /// Format: Host=host;Port=5432;Database=rdtclient;Username=user;Password=pass
+    /// </summary>
+    public String? ConnectionString { get; set; }
 }
