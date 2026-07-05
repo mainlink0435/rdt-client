@@ -24,11 +24,12 @@ public class Sabnzbd(ILogger<Sabnzbd> logger, Torrents torrents, AppSettings app
 
                                       var dlStats = t.Downloads.Select(m => torrents.GetDownloadStats(m.DownloadId)).ToList();
 
+                                      var dlBytesTotal = dlStats.Sum(m => m.BytesTotal);
+                                      var dlBytesDone = dlStats.Sum(m => m.BytesDone);
+
                                       if (dlStats.Count > 0)
                                       {
-                                          var bytesDone = dlStats.Sum(m => m.BytesDone);
-                                          var bytesTotal = dlStats.Sum(m => m.BytesTotal);
-                                          var downloadProgress = bytesTotal > 0 ? Math.Clamp((Double)bytesDone / bytesTotal, 0.0, 1.0) : 0;
+                                          var downloadProgress = dlBytesTotal > 0 ? Math.Clamp((Double)dlBytesDone / dlBytesTotal, 0.0, 1.0) : 0;
                                           progress = (rdProgress + downloadProgress) / 2.0;
                                       }
                                       else
@@ -51,13 +52,26 @@ public class Sabnzbd(ILogger<Sabnzbd> logger, Torrents torrents, AppSettings app
                                           }
                                       }
 
+                                      var mbBytes = dlBytesTotal > 0 ? dlBytesTotal : (t.RdSize ?? 0);
+                                      var mbLeftBytes = dlBytesTotal > 0
+                                                            ? dlBytesTotal - dlBytesDone
+                                                            : (t.RdSize.HasValue
+                                                                   ? (Int64)(t.RdSize.Value * (1.0 - rdProgress))
+                                                                   : 0);
+
                                       return new SabnzbdQueueSlot
                                       {
                                           Index = index,
                                           NzoId = t.Hash,
                                           Filename = t.RdName ?? t.Hash,
-                                          Size = FileSizeHelper.FormatSize(dlStats.Sum(d => d.BytesTotal)),
-                                          SizeLeft = FileSizeHelper.FormatSize(dlStats.Sum(d => d.BytesTotal - d.BytesDone)),
+                                          Size = dlBytesTotal > 0
+                                                    ? FileSizeHelper.FormatSize(dlBytesTotal)
+                                                    : FileSizeHelper.FormatSize(t.RdSize),
+                                          SizeLeft = dlBytesTotal > 0
+                                                          ? FileSizeHelper.FormatSize(dlBytesTotal - dlBytesDone)
+                                                          : FileSizeHelper.FormatSize(t.RdSize.HasValue ? (Int64)(t.RdSize.Value * (1.0 - rdProgress)) : null),
+                                          Mb = (mbBytes / 1048576.0).ToString("0.00"),
+                                          MbLeft = (Math.Max(mbLeftBytes, 0) / 1048576.0).ToString("0.00"),
                                           Percentage = (progress * 100.0).ToString("0"),
 
                                           Status = t.RdStatus switch
@@ -78,6 +92,9 @@ public class Sabnzbd(ILogger<Sabnzbd> logger, Torrents torrents, AppSettings app
                                   })
                                   .ToList()
         };
+
+        queue.Mb = queue.Slots.Sum(s => Double.Parse(s.Mb)).ToString("0.00");
+        queue.MbLeft = queue.Slots.Sum(s => Double.Parse(s.MbLeft)).ToString("0.00");
 
         return queue;
     }
@@ -107,11 +124,16 @@ public class Sabnzbd(ILogger<Sabnzbd> logger, Torrents torrents, AppSettings app
                                              path = Path.Combine(path, t.RdName);
                                          }
 
+                                         var historyBytesTotal = t.Downloads.Sum(d => d.BytesTotal);
+                                         var totalBytes = historyBytesTotal > 0 ? historyBytesTotal : (t.RdSize ?? 0);
+
                                          return new SabnzbdHistorySlot
                                          {
                                              NzoId = t.Hash,
                                              Name = t.RdName ?? t.Hash,
-                                             Size = FileSizeHelper.FormatSize(t.Downloads.Sum(d => d.BytesTotal)),
+                                             Size = FileSizeHelper.FormatSize(totalBytes),
+                                             Bytes = totalBytes,
+                                             Downloaded = String.IsNullOrWhiteSpace(t.Error) ? totalBytes : 0,
                                              Status = String.IsNullOrWhiteSpace(t.Error) ? "Completed" : "Failed",
                                              Category = t.Category ?? "Default",
                                              Path = path
