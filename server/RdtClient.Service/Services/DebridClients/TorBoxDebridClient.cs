@@ -578,7 +578,35 @@ public class TorBoxDebridClient(
     }
 
     private async Task<String> HandleAddTorrentErrors(Func<Boolean, Task<String>> action)
-        => await HandleSlowEndpointRateLimit("/api/torrents/createtorrent", () => action(false));
+    {
+        var key = "/api/torrents/createtorrent";
+
+        if (_endpointCooldowns.TryGetValue(key, out var until) && until > DateTimeOffset.UtcNow)
+            throw new Exception($"TorBox {key} rate limit cooldown active, retrying in {(until - DateTimeOffset.UtcNow).TotalSeconds:F0}s");
+
+        try
+        {
+            return await action(false);
+        }
+        catch (RateLimitException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex.InnerException is RateLimitException)
+        {
+            throw;
+        }
+        catch (TorBoxException ex) when (IsRateLimit(ex))
+        {
+            _endpointCooldowns[key] = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(2));
+            throw new Exception($"TorBox {key} rate limited, will retry after cooldown");
+        }
+        catch (Exception ex) when (ex.Message.Contains("slow_down", StringComparison.OrdinalIgnoreCase))
+        {
+            _endpointCooldowns[key] = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(2));
+            throw new Exception($"TorBox {key} rate limited (slow_down), will retry after cooldown");
+        }
+    }
 
     private static Boolean IsRateLimit(TorBoxException exception)
     {
@@ -587,39 +615,33 @@ public class TorBoxDebridClient(
     }
 
     private async Task<String> HandleAddUsenetErrors(Func<Boolean, Task<String>> action)
-        => await HandleSlowEndpointRateLimit("/api/usenet/createusenetdownload", () => action(false));
-
-    private async Task<String> HandleSlowEndpointRateLimit(String endpointKey, Func<Task<String>> action)
     {
-        while (true)
+        var key = "/api/usenet/createusenetdownload";
+
+        if (_endpointCooldowns.TryGetValue(key, out var until) && until > DateTimeOffset.UtcNow)
+            throw new Exception($"TorBox {key} rate limit cooldown active, retrying in {(until - DateTimeOffset.UtcNow).TotalSeconds:F0}s");
+
+        try
         {
-            while (_endpointCooldowns.TryGetValue(endpointKey, out var until))
-            {
-                var remaining = until - DateTimeOffset.UtcNow;
-                if (remaining <= TimeSpan.Zero)
-                {
-                    _endpointCooldowns.TryRemove(endpointKey, out _);
-                    break;
-                }
-
-                logger.LogInformation("TorBox {Endpoint} rate limit cooldown, waiting {Remaining}", endpointKey, remaining);
-                await Task.Delay(remaining + TimeSpan.FromSeconds(1));
-            }
-
-            try
-            {
-                return await action();
-            }
-            catch (TorBoxException ex) when (IsRateLimit(ex))
-            {
-                _endpointCooldowns[endpointKey] = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(2));
-                logger.LogWarning("TorBox {Endpoint} rate limited, retrying after cooldown", endpointKey);
-            }
-            catch (Exception ex) when (ex.Message.Contains("slow_down", StringComparison.OrdinalIgnoreCase))
-            {
-                _endpointCooldowns[endpointKey] = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(2));
-                logger.LogWarning("TorBox {Endpoint} slow_down response, retrying after cooldown", endpointKey);
-            }
+            return await action(false);
+        }
+        catch (RateLimitException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex.InnerException is RateLimitException)
+        {
+            throw;
+        }
+        catch (TorBoxException ex) when (IsRateLimit(ex))
+        {
+            _endpointCooldowns[key] = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(2));
+            throw new Exception($"TorBox {key} rate limited, will retry after cooldown");
+        }
+        catch (Exception ex) when (ex.Message.Contains("slow_down", StringComparison.OrdinalIgnoreCase))
+        {
+            _endpointCooldowns[key] = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(2));
+            throw new Exception($"TorBox {key} rate limited (slow_down), will retry after cooldown");
         }
     }
 
