@@ -4,3 +4,7 @@ public class RateLimitException(String message, TimeSpan retryAfter) : Exception
 {
     public TimeSpan RetryAfter { get; } = retryAfter;
 }
+
+public class TorBoxEndpointRateLimitException(String message) : Exception(message)
+{
+}
