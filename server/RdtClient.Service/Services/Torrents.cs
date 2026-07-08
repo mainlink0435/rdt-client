@@ -740,10 +740,7 @@ public class Torrents(
             {
                 var rdTorrent = torrent.RdId != null && providerTorrentsById.TryGetValue(torrent.RdId, out var providerTorrent) ? providerTorrent : null;
 
-                if (rdTorrent == null
-                    && settings.Current.Provider.AutoDelete
-                    && torrent.RdStatus != TorrentStatus.Queued
-                    && (torrent.Downloads.Count == 0 || torrent.Downloads.All(m => m.Completed != null)))
+                if (rdTorrent == null && settings.Current.Provider.AutoDelete && torrent.RdStatus != TorrentStatus.Queued)
                 {
                     await Delete(torrent.TorrentId, true, false, true);
                 }
