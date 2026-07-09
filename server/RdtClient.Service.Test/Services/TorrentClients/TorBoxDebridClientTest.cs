@@ -594,6 +594,7 @@ public class TorBoxDebridClientTest
     public async Task AddTorrentMagnet_ThrowsRateLimitException_OnActiveLimit()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var magnetLink = "magnet:?xt=urn:btih:test";
         var torrentsApiMock = new Mock<ITorrentsApi>();
         var userApiMock = new Mock<IUserApi>();
@@ -625,7 +626,7 @@ public class TorBoxDebridClientTest
                        .ThrowsAsync(new TorBoxException("active_limit", "Active limit reached"));
 
         // Act & Assert
-        await Assert.ThrowsAsync<RateLimitException>(() => clientMock.Object.AddTorrentMagnet(magnetLink));
+        await Assert.ThrowsAsync<TorBoxEndpointRateLimitException>(() => clientMock.Object.AddTorrentMagnet(magnetLink));
         torrentsApiMock.Verify(m => m.AddMagnetAsync(magnetLink, 5, It.IsAny<Boolean>(), It.IsAny<String?>(), false, It.IsAny<CancellationToken>()), Times.Once);
         torrentsApiMock.Verify(m => m.AddMagnetAsync(magnetLink, 5, It.IsAny<Boolean>(), It.IsAny<String?>(), true, It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -634,6 +635,7 @@ public class TorBoxDebridClientTest
     public async Task AddTorrentMagnet_ThrowsRateLimitException_OnSlowDown()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var magnetLink = "magnet:?xt=urn:btih:test";
         var torrentsApiMock = new Mock<ITorrentsApi>();
         var userApiMock = new Mock<IUserApi>();
@@ -665,13 +667,14 @@ public class TorBoxDebridClientTest
                        .ThrowsAsync(new("slow_down"));
 
         // Act & Assert
-        await Assert.ThrowsAsync<RateLimitException>(() => clientMock.Object.AddTorrentMagnet(magnetLink));
+        await Assert.ThrowsAsync<TorBoxEndpointRateLimitException>(() => clientMock.Object.AddTorrentMagnet(magnetLink));
     }
 
     [Fact]
     public async Task AddTorrentMagnet_ThrowsRateLimitException_OnRateLimitException()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var magnetLink = "magnet:?xt=urn:btih:test";
         var torrentsApiMock = new Mock<ITorrentsApi>();
         var userApiMock = new Mock<IUserApi>();
@@ -711,6 +714,7 @@ public class TorBoxDebridClientTest
     public async Task AddTorrentMagnet_ThrowsRateLimitException_OnWrappedRateLimitException()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var magnetLink = "magnet:?xt=urn:btih:test";
         var torrentsApiMock = new Mock<ITorrentsApi>();
         var userApiMock = new Mock<IUserApi>();
@@ -750,6 +754,7 @@ public class TorBoxDebridClientTest
     public async Task AddTorrentFile_ThrowsRateLimitException_OnActiveLimit()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var bytes = new Byte[]
         {
             1, 2, 3
@@ -785,7 +790,7 @@ public class TorBoxDebridClientTest
                        .ThrowsAsync(new TorBoxException("active_limit", "Active limit reached"));
 
         // Act & Assert
-        await Assert.ThrowsAsync<RateLimitException>(() => clientMock.Object.AddTorrentFile(bytes));
+        await Assert.ThrowsAsync<TorBoxEndpointRateLimitException>(() => clientMock.Object.AddTorrentFile(bytes));
         torrentsApiMock.Verify(m => m.AddFileAsync(bytes, 5, It.IsAny<Boolean>(), It.IsAny<String?>(), false, It.IsAny<CancellationToken>()), Times.Once);
         torrentsApiMock.Verify(m => m.AddFileAsync(bytes, 5, It.IsAny<Boolean>(), It.IsAny<String?>(), true, It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -794,6 +799,7 @@ public class TorBoxDebridClientTest
     public async Task AddNzbLink_ThrowsRateLimitException_OnActiveLimit()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var nzbLink = "https://example.com/test.nzb";
         var usenetApiMock = new Mock<IUsenetApi>();
 
@@ -811,7 +817,7 @@ public class TorBoxDebridClientTest
                      .ThrowsAsync(new TorBoxException("active_limit", "Active limit reached"));
 
         // Act & Assert
-        await Assert.ThrowsAsync<RateLimitException>(() => clientMock.Object.AddNzbLink(nzbLink));
+        await Assert.ThrowsAsync<TorBoxEndpointRateLimitException>(() => clientMock.Object.AddNzbLink(nzbLink));
         usenetApiMock.Verify(m => m.AddLinkAsync(nzbLink, It.IsAny<Int32>(), It.IsAny<String?>(), It.IsAny<String?>(), false, It.IsAny<CancellationToken>()), Times.Once);
         usenetApiMock.Verify(m => m.AddLinkAsync(nzbLink, It.IsAny<Int32>(), It.IsAny<String?>(), It.IsAny<String?>(), true, It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -820,6 +826,7 @@ public class TorBoxDebridClientTest
     public async Task AddNzbFile_ThrowsRateLimitException_OnActiveLimit()
     {
         // Arrange
+        TorBoxDebridClient.ClearEndpointCooldowns();
         var bytes = new Byte[]
         {
             1, 2, 3
@@ -842,7 +849,7 @@ public class TorBoxDebridClientTest
                      .ThrowsAsync(new TorBoxException("active_limit", "Active limit reached"));
 
         // Act & Assert
-        await Assert.ThrowsAsync<RateLimitException>(() => clientMock.Object.AddNzbFile(bytes, name));
+        await Assert.ThrowsAsync<TorBoxEndpointRateLimitException>(() => clientMock.Object.AddNzbFile(bytes, name));
         usenetApiMock.Verify(m => m.AddFileAsync(bytes, It.IsAny<Int32>(), name, It.IsAny<String?>(), false, It.IsAny<CancellationToken>()), Times.Once);
         usenetApiMock.Verify(m => m.AddFileAsync(bytes, It.IsAny<Int32>(), name, It.IsAny<String?>(), true, It.IsAny<CancellationToken>()), Times.Never);
     }

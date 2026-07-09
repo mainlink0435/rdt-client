@@ -91,7 +91,6 @@ public static class DiConfig
                 .AddResilienceHandler("torbox_client_handler", ConfigureResiliencePipeline);
 
         services.AddHttpClient(TORBOX_CLIENT_SLOW)
-                .AddHttpMessageHandler<ConcurrencyLimitHandler>()
                 .AddResilienceHandler("torbox_client_handler_slow", ConfigureResiliencePipeline);
     }
 
