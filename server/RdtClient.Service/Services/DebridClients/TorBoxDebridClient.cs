@@ -85,7 +85,7 @@ public class TorBoxDebridClient(
             var result = await GetClient(DiConfig.TORBOX_CLIENT_SLOW)
                                .Torrents.AddMagnetAsync(magnetLink,
                                                         user.Data?.Settings?.SeedTorrents ?? 3,
-                                                        allowZip: Settings.Get.Provider.PreferZippedDownloads,
+                                                        Settings.Get.Provider.PreferZippedDownloads,
                                                         as_queued: asQueued);
 
             return result.Data?.TorrentId?.ToString() ?? throw new InvalidOperationException("TorBox API did not return torrent ID.");
@@ -101,7 +101,7 @@ public class TorBoxDebridClient(
             var result = await GetClient(DiConfig.TORBOX_CLIENT_SLOW)
                                .Torrents.AddFileAsync(bytes,
                                                       user.Data?.Settings?.SeedTorrents ?? 3,
-                                                      allowZip: Settings.Get.Provider.PreferZippedDownloads,
+                                                      Settings.Get.Provider.PreferZippedDownloads,
                                                       as_queued: asQueued);
 
             return result.Data?.TorrentId?.ToString() ?? throw new InvalidOperationException("TorBox API did not return torrent ID");
@@ -160,6 +160,11 @@ public class TorBoxDebridClient(
     /// <inheritdoc />
     public Task<Int32?> SelectFiles(Torrent torrent)
     {
+        if (torrent.Files.Count == 0)
+        {
+            return Task.FromResult<Int32?>(null);
+        }
+
         return Task.FromResult<Int32?>(torrent.Files.Count);
     }
 
@@ -334,7 +339,7 @@ public class TorBoxDebridClient(
 
             var usenets = await HandleErrors(() => GetClient().Usenet.GetCurrentAsync(true));
             var usenet = usenets?.FirstOrDefault(m => m.Hash == torrent.RdId);
-            id = (Int32?)usenet?.Id;
+            id = (Int32?) usenet?.Id;
         }
         else
         {
@@ -398,7 +403,7 @@ public class TorBoxDebridClient(
             }
 
             var httpClient = httpClientFactory.CreateClient(clientId);
-            var torBoxNetClient = new TorBoxNetClient(null, httpClient, retryCount: 5);
+            var torBoxNetClient = new TorBoxNetClient(null, httpClient, 5);
             torBoxNetClient.UseApiAuthentication(apiKey);
 
             // Get the server time to fix up the timezones on results
@@ -475,7 +480,7 @@ public class TorBoxDebridClient(
             OriginalBytes = torrent.Size,
             Host = torrent.DownloadPresent.ToString(),
             Split = 0,
-            Progress = (Int64)(torrent.Progress * 100.0),
+            Progress = (Int64) (torrent.Progress * 100.0),
             Status = torrent.DownloadState,
             Type = DownloadType.Torrent,
             Added = ChangeTimeZone(torrent.CreatedAt)!.Value,
@@ -506,7 +511,7 @@ public class TorBoxDebridClient(
             OriginalBytes = usenet.Size,
             Host = usenet.DownloadPresent.ToString(),
             Split = 0,
-            Progress = (Int64)(usenet.Progress * 100.0),
+            Progress = (Int64) (usenet.Progress * 100.0),
             Status = usenet.DownloadState,
             Type = DownloadType.Nzb,
             Added = ChangeTimeZone(usenet.CreatedAt)!.Value,

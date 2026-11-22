@@ -33,6 +33,7 @@ public class Torrents(
     RealDebridDebridClient realDebridDebridClient,
     DebridLinkClient debridLinkClient,
     TorBoxDebridClient torBoxDebridClient,
+    HighwayDebridClient highwayDebridClient,
     ISettings settings,
     ITorrentRunnerState runnerState)
 {
@@ -56,6 +57,7 @@ public class Torrents(
                 Provider.AllDebrid => allDebridDebridClient,
                 Provider.DebridLink => debridLinkClient,
                 Provider.TorBox => torBoxDebridClient,
+                Provider.HIGHWAY => highwayDebridClient,
                 _ => throw new("Invalid Provider")
             };
         }
@@ -426,21 +428,30 @@ public class Torrents(
         return result;
     }
 
-    public async Task SelectFiles(Guid torrentId)
+    public async Task<Boolean> SelectFiles(Guid torrentId)
     {
         var torrent = await GetById(torrentId);
 
         if (torrent == null)
         {
-            return;
+            return true;
         }
 
         var selected = await DebridClient.SelectFiles(torrent);
+
+        if (selected == null)
+        {
+            logger.LogWarning("File list not yet available from the debrid provider, retrying file selection next cycle {torrentInfo}", torrent.ToLog());
+
+            return false;
+        }
 
         if (selected == 0)
         {
             await MarkAllFilesExcluded(torrent);
         }
+
+        return true;
     }
 
     public async Task CreateDownloads(Guid torrentId)
@@ -694,6 +705,7 @@ public class Torrents(
             Provider = Enum.GetName(settings.Current.Provider.Provider),
             UserName = user.Username,
             Expiration = user.Expiration,
+            Premium = user.Premium || user.Expiration.HasValue,
             CurrentVersion = UpdateChecker.CurrentVersion,
             LatestVersion = UpdateChecker.LatestVersion,
             IsInsecure = UpdateChecker.IsInsecure,
@@ -726,7 +738,7 @@ public class Torrents(
                     && !String.IsNullOrWhiteSpace(rdTorrent.Hash)
                     && !String.IsNullOrWhiteSpace(rdTorrent.Id))
                 {
-                    torrent = torrents.FirstOrDefault(localTorrent => localTorrent is { Type: DownloadType.Torrent, ClientKind: null or Provider.TorBox }
+                    torrent = torrents.FirstOrDefault(localTorrent => localTorrent is {Type: DownloadType.Torrent, ClientKind: null or Provider.TorBox}
                                                                       && !String.IsNullOrWhiteSpace(localTorrent.Hash)
                                                                       && !String.IsNullOrWhiteSpace(localTorrent.RdId)
                                                                       && localTorrent.RdId.Equals(localTorrent.Hash, StringComparison.OrdinalIgnoreCase)
@@ -747,6 +759,35 @@ public class Torrents(
                         logger.LogInformation("Migrated TorBox torrent RdId from hash to torrent id for {TorrentName} ({Hash}) -> {RdId}",
                                               torrent.RdName ?? rdTorrent.Filename,
                                               rdTorrent.Hash,
+                                              rdTorrent.Id);
+                    }
+                }
+
+                // HIGHWAY promotes a queued spool reference (32-hex id) to a numeric transfer id once a slot frees.
+                if (torrent == null
+                    && Settings.Get.Provider.Provider == Provider.HIGHWAY
+                    && !String.IsNullOrWhiteSpace(rdTorrent.Id)
+                    && Int64.TryParse(rdTorrent.Id, out _)
+                    && !String.IsNullOrWhiteSpace(rdTorrent.Filename))
+                {
+                    torrent = torrents.FirstOrDefault(localTorrent => localTorrent.ClientKind is null or Provider.HIGHWAY
+                                                                      && localTorrent.Type == rdTorrent.Type
+                                                                      && !String.IsNullOrWhiteSpace(localTorrent.RdId)
+                                                                      && localTorrent.RdId.Length == 32
+                                                                      && localTorrent.RdId.All(Uri.IsHexDigit)
+                                                                      && String.Equals(localTorrent.RdName, rdTorrent.Filename, StringComparison.OrdinalIgnoreCase));
+
+                    if (torrent != null)
+                    {
+                        torrentsByRdId.Remove(torrent.RdId!);
+
+                        await torrentData.UpdateRdId(torrent, rdTorrent.Id);
+                        torrent.RdId = rdTorrent.Id;
+                        torrent.ClientKind = Provider.HIGHWAY;
+                        torrentsByRdId[rdTorrent.Id] = torrent;
+
+                        logger.LogInformation("Promoted HIGHWAY spool reference to transfer id for {TorrentName} -> {RdId}",
+                                              torrent.RdName ?? rdTorrent.Filename,
                                               rdTorrent.Id);
                     }
                 }
@@ -1236,20 +1277,6 @@ public class Torrents(
                    torrent.RdFiles);
     }
 
-    private readonly record struct TorrentRdState(
-        String? RdName,
-        Int64? RdSize,
-        String? RdHost,
-        Int64? RdSplit,
-        Int64? RdProgress,
-        TorrentStatus? RdStatus,
-        String? RdStatusRaw,
-        DateTimeOffset? RdAdded,
-        DateTimeOffset? RdEnded,
-        Int64? RdSpeed,
-        Int64? RdSeeders,
-        String? RdFiles);
-
     private void Log(String message, Download? download, Torrent? torrent)
     {
         if (download != null)
@@ -1300,4 +1327,18 @@ public class Torrents(
 
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
+
+    private readonly record struct TorrentRdState(
+        String? RdName,
+        Int64? RdSize,
+        String? RdHost,
+        Int64? RdSplit,
+        Int64? RdProgress,
+        TorrentStatus? RdStatus,
+        String? RdStatusRaw,
+        DateTimeOffset? RdAdded,
+        DateTimeOffset? RdEnded,
+        Int64? RdSpeed,
+        Int64? RdSeeders,
+        String? RdFiles);
 }

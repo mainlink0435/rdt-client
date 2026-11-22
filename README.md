@@ -1,15 +1,15 @@
 # Real-Debrid Torrent & Usenet Client
 
-This is a web interface to manage your torrents on Real-Debrid, AllDebrid, Premiumize, TorBox or DebridLink. It supports the following features:
+This is a web interface to manage your torrents on Real-Debrid, AllDebrid, Premiumize, TorBox, DebridLink or HIGHWAY. It supports the following features:
 
 - Add new torrents through magnets or files
-- Add usenet downloads through NZB files (TorBox and Premiumize only)
-- Download all files from Real-Debrid, AllDebrid, Premiumize or TorBox to your local machine automatically
+- Add usenet downloads through NZB files (TorBox, Premiumize and HIGHWAY only)
+- Download all files from Real-Debrid, AllDebrid, Premiumize, TorBox or HIGHWAY to your local machine automatically
 - Unpack all files when finished downloading
 - Implements a fake qBittorrent API so you can hook up other applications like Sonarr, Radarr or Couchpotato.
 - Built with Angular 21 and .NET 10
 
-**You will need a Premium service at Real-Debrid, AllDebrid, Premiumize, Torbox or DebridLink!**
+**You will need a Premium service at Real-Debrid, AllDebrid, Premiumize, Torbox or DebridLink, or a HIGHWAY account!**
 
 [Click here to sign up for Real-Debrid.](https://real-debrid.com/?id=1348683)
 
@@ -20,6 +20,8 @@ This is a web interface to manage your torrents on Real-Debrid, AllDebrid, Premi
 [Click here to sign up for TorBox.](https://torbox.app/subscription?referral=3d25018e-f30d-4c4b-a714-48c04bc76765)
 
 [Click here to sign up for DebridLink.](https://debrid-link.fr/id/6duif)
+
+[Click here for HIGHWAY.](https://high-way.me/)
 
 <sub>(referal links so I can get a few free premium days)</sub>
 
@@ -118,7 +120,7 @@ This [downloader](https://github.com/bezzad/Downloader) can be used to download 
 
 It has the following options:
 
-- Download speed (in MB/s): This number indicates the speed in MB/s per download over all parallel downloads and chunks.
+- Download speed (in MB/s): Maximum speed in MB/s applied **per concurrent download** (aggregated across that download's chunks), not a global limit. The effective total ceiling is this value multiplied by the "Maximum parallel downloads" setting. For example, 40 MB/s with 2 parallel downloads is roughly 80 MB/s total, and 40 MB/s with 4 parallel downloads is roughly 160 MB/s total, so total throughput can appear higher than the number you set here. Set to 0 for unlimited.
 - Parallel connections per download: This number indicates how many parallel it will use per download. This can increase speed, recommended is no more than 8.
 - Parallel chunks per download: This number indicates in how many chunks each download is split, recommended is no more than 8.
 - Connection Timeout: This number indicates the timeout in milliseconds before a download chunk times out. It will retry each chunk 5 times before completely failing.
@@ -134,7 +136,7 @@ It has the following options:
 - Url: The full URL to your Aria2c service. This must end in /jsonrpc. A standard path is `http://192.168.10.2:6800/jsonrpc`.
 - Secret: Optional secret to connecto to your Aria2c service.
 
-If Aria2c is selected, none of the above options for `Internal Downloader` are used, you have to configure Aria2c manually.
+If Aria2c is selected, none of the above Bezzad options are used, you have to configure Aria2c manually.
 
 #### Symlink downloader
 
@@ -171,6 +173,41 @@ It has the following options:
 
 > **The Synology *Download Path* (above) and rdt-client's general *Download path* must resolve to the exact same physical folder on the NAS.**
 
+### HIGHWAY provider
+
+[HIGHWAY](https://high-way.me/) (`high-way.me`) is also a multi hoster that downloads torrents **and** usenet server-side. rdt-client pushes magnets/NZBs to it and pulls the finished files down.
+
+Configuration under `Settings` &rarr; `Provider`:
+
+- **Provider**: `HIGHWAY`
+- **API Key**: a token you create once in the [HIGHWAY Center](https://high-way.me/) (log in, open **Sitzungen** &rarr; **API-Token erstellen**). This is a 32-character hex string and is revocable from that same list.
+
+Getting the bytes to disk — two modes:
+
+**A. Symlink + rclone WebDAV mount (recommended).** Mount HIGHWAY's WebDAV and use the **Symlink** download client. Example `rclone.conf`:
+
+```ini
+[highway]
+type = webdav
+url = https://cloud.high-way.me/dav/
+vendor = other
+user = <highway username>
+pass = <highway WebDAV / "usenet" password, or the same 32-hex API token from Settings>
+```
+
+```
+rclone mount highway: /mnt/highway --vfs-cache-mode full
+```
+
+Set **Rclone mount path** to `/mnt/highway/` and set the **Post Torrent Download Action** so it does **not** remove the transfer from the provider. rdt-client symlinks the finished files straight from the mount — no re-download.
+
+**B. Internal / Aria2c (no mount).** rdt-client downloads each file directly using its own signed URL. The usual file filters (include/exclude regex, minimum size) apply. If HIGHWAY hasn't signed per-file it falls back to fetching the whole transfer as one ZIP.
+
+Notes:
+
+- HIGHWAY torrents leech from peers server-side, so expect real `downloading` progress for minutes/hours. Only content HIGHWAY already has is linked instantly.
+- When HIGHWAY is at its active-transfer limit a new add goes into HIGHWAY's own queue and reports `queued`; this is normal and it will start automatically.
+
 ### Troubleshooting
 
 - If you forgot your logins simply delete the `rdtclient.db` and restart the service.
@@ -199,7 +236,7 @@ Notice: the progress and ETA reported in Sonarr's Activity tab will not be accur
 
 #### Usenet/NZB
 
-RdtClient also emulates part of the SABnzbd API so Sonarr and Radarr can add NZB downloads. This requires a provider that supports Usenet/NZB downloads, currently TorBox or Premiumize.
+RdtClient also emulates part of the SABnzbd API so Sonarr and Radarr can add NZB downloads. This requires a provider that supports Usenet/NZB downloads, currently TorBox, Premiumize or HIGHWAY.
 
 1. Login to Sonarr or Radarr and click `Settings`.
 1. Go to the `Download Client` tab and click the plus to add.

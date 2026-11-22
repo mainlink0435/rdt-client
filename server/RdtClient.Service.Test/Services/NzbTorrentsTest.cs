@@ -30,6 +30,7 @@ public class NzbTorrentsTest
                         null!,
                         null!,
                         null!,
+                        null!,
                         new TestSettings(),
                         new TorrentRunnerState());
     }
@@ -45,7 +46,7 @@ public class NzbTorrentsTest
             DownloadClient = DownloadClient.Bezzad
         };
 
-        _mocks.TorrentDataMock.Setup(t => t.GetByHash(It.IsAny<String>())).ReturnsAsync((Torrent)null!);
+        _mocks.TorrentDataMock.Setup(t => t.GetByHash(It.IsAny<String>())).ReturnsAsync((Torrent) null!);
 
         _mocks.TorrentDataMock.Setup(t => t.Add(null,
                                                 It.IsAny<String>(),
@@ -103,7 +104,7 @@ public class NzbTorrentsTest
             DownloadClient = DownloadClient.Bezzad
         };
 
-        _mocks.TorrentDataMock.Setup(t => t.GetByHash(It.IsAny<String>())).ReturnsAsync((Torrent)null!);
+        _mocks.TorrentDataMock.Setup(t => t.GetByHash(It.IsAny<String>())).ReturnsAsync((Torrent) null!);
 
         _mocks.TorrentDataMock.Setup(t => t.Add(null,
                                                 It.IsAny<String>(),

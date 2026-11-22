@@ -1,6 +1,6 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Text.Json;
 using RdtClient.Data.Enums;
 using RdtClient.Data.Models.Data;
 using RdtClient.Data.Models.DebridClient;
@@ -13,8 +13,8 @@ public class QBittorrentTest
     private readonly Mock<Authentication> _authenticationMock;
     private readonly Mock<ILogger<QBittorrent>> _loggerMock;
     private readonly QBittorrent _qBittorrent;
-    private readonly TestSettings _settings;
     private readonly TorrentRunnerState _runnerState;
+    private readonly TestSettings _settings;
     private readonly Mock<Torrents> _torrentsMock;
 
     public QBittorrentTest()
@@ -22,7 +22,7 @@ public class QBittorrentTest
         _loggerMock = new();
         _settings = new();
         _runnerState = new();
-        _torrentsMock = new(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, _settings, _runnerState);
+        _torrentsMock = new(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, _settings, _runnerState);
         _authenticationMock = new(null!, null!, null!);
 
         _qBittorrent = new(_loggerMock.Object, _settings, _authenticationMock.Object, _torrentsMock.Object, null!, _runnerState);
@@ -76,6 +76,7 @@ public class QBittorrentTest
                 Hash = "hash1",
                 RdName = "Torrent 1",
                 RdProgress = 100, // Real-Debrid is 100%
+                Completed = DateTimeOffset.UtcNow,
                 Type = DownloadType.Torrent,
                 Downloads = new List<Download>
                 {
@@ -99,6 +100,58 @@ public class QBittorrentTest
         // Assert
         Assert.Single(result);
         Assert.Equal(1.0f, result[0].Progress);
+    }
+
+    [Fact]
+    public async Task TorrentInfo_ShouldNotReport100Percent_WhenLocalDownloadHasNotStarted()
+    {
+        var torrent = new Torrent
+        {
+            TorrentId = Guid.NewGuid(),
+            Hash = "hash1",
+            RdName = "Torrent 1",
+            RdProgress = 100,
+            Type = DownloadType.Torrent,
+            Downloads = new List<Download>()
+        };
+
+        _torrentsMock.Setup(m => m.Get()).ReturnsAsync(new List<Torrent> { torrent });
+
+        var result = await _qBittorrent.TorrentInfo();
+
+        Assert.Single(result);
+        Assert.True(result[0].Progress < 1.0f);
+    }
+
+    [Fact]
+    public async Task TorrentInfo_ShouldNotReport100Percent_WhenLocalFilesArePreallocatedBeforeCompletion()
+    {
+        var downloadId = Guid.NewGuid();
+        var torrentId = Guid.NewGuid();
+        var torrent = new Torrent
+        {
+            TorrentId = torrentId,
+            Hash = "hash1",
+            RdName = "Torrent 1",
+            RdProgress = 100,
+            Type = DownloadType.Torrent,
+            Downloads = new List<Download>
+            {
+                new()
+                {
+                    DownloadId = downloadId,
+                    TorrentId = torrentId
+                }
+            }
+        };
+
+        _torrentsMock.Setup(m => m.Get()).ReturnsAsync(new List<Torrent> { torrent });
+        _torrentsMock.Setup(m => m.GetDownloadStats(downloadId)).Returns((0, 1000, 1000));
+
+        var result = await _qBittorrent.TorrentInfo();
+
+        Assert.Single(result);
+        Assert.True(result[0].Progress < 1.0f);
     }
 
     [Fact]
@@ -405,5 +458,40 @@ public class QBittorrentTest
                 Directory.Delete(mappedPath, true);
             }
         }
+    }
+
+    [Fact]
+    public async Task TorrentInfo_ShouldKeepTorBoxRootNameExtension_WhenTorrentIsNamedAfterItsOnlyFile()
+    {
+        _settings.Current.DownloadClient.MappedPath = "/data/downloads";
+
+        var torrentRootName = "Sample.Movie.2024.1080p-GROUP.mkv";
+
+        var torrent = new Torrent
+        {
+            Hash = "hash1",
+            Category = "movies",
+            ClientKind = Provider.TorBox,
+            Completed = DateTimeOffset.UtcNow,
+            RdName = torrentRootName,
+            RdFiles = JsonSerializer.Serialize(new List<DebridClientFile>
+            {
+                new()
+                {
+                    Id = 1,
+                    Path = torrentRootName,
+                    Bytes = 1000,
+                    Selected = true
+                }
+            }),
+            Type = DownloadType.Torrent
+        };
+
+        _torrentsMock.Setup(m => m.Get()).ReturnsAsync([torrent]);
+
+        var result = await _qBittorrent.TorrentInfo();
+
+        Assert.Single(result);
+        Assert.Equal(Path.Combine("/data/downloads", "movies", torrentRootName) + Path.DirectorySeparatorChar, result[0].ContentPath);
     }
 }

@@ -108,11 +108,15 @@ public class DbSettingsDownloadClient
     [Description("Path where files are downloaded to on your host (i.e. D:\\Downloads). This path is used for *arr to find your downloads.")]
     public String MappedPath { get; set; } = @"C:\Downloads";
 
-    [DisplayName("Download speed (in MB/s) (only used for the Internal Downloader)")]
-    [Description("Maximum download speed in Megabytes per second. When set to 0 unlimited speed is used.")]
+    [DisplayName("Download speed (in MB/s) (only used for the Bezzad Downloader)")]
+    [Description("Maximum download speed in MB/s, applied per concurrent download (not a global limit). The effective total ceiling is this value multiplied by the 'Maximum parallel downloads' setting. For example, 40 with 2 parallel downloads is roughly 80 MB/s total, and 40 with 4 parallel downloads is roughly 160 MB/s total, so overall throughput can appear to exceed the value set here. When set to 0 unlimited speed is used.")]
     public Int32 MaxSpeed { get; set; } = 0;
 
-    [DisplayName("Parallel connections per download (only used for the Internal Downloader)")]
+    [DisplayName("Download speed slider maximum (in MB/s) (only used for the Bezzad Downloader)")]
+    [Description("Upper bound of the download speed slider shown on the Torrents page when the Bezzad Downloader is selected. Set this to roughly your line speed.")]
+    public Int32 MaxSpeedSliderMax { get; set; } = 100;
+
+    [DisplayName("Parallel connections per download (only used for the Bezzad Downloader)")]
     [Description("Maximum amount of parallel threads that are used to download a single file to your host. If set to 0 no parallel downloading will be done.")]
     public Int32 ParallelCount { get; set; } = 8;
 
@@ -124,7 +128,7 @@ public class DbSettingsDownloadClient
     [Description("Buffersize in bytes for the internal downloader, used to read data and write it to disk.")]
     public Int32 BufferSize { get; set; } = 4 * 1024 * 1024;
 
-    [DisplayName("Connection Timeout (only used for the Internal Downloader)")]
+    [DisplayName("Connection Timeout (only used for the Bezzad Downloader)")]
     [Description("Timeout in milliseconds before the downloader times out.")]
     public Int32 Timeout { get; set; } = 5000;
 
@@ -195,6 +199,7 @@ public class DbSettingsProvider
 <a href=""https://www.premiumize.me/"" target=""_blank"" rel=""noopener"">https://www.premiumize.me/</a>
 <a href=""https://debrid-link.com/"" target=""_blank"" rel=""noopener"">https://debrid-link.com/</a>
 <a href=""https://torbox.app/"" target=""_blank"" rel=""noopener"">https://torbox.app/</a>
+<a href=""https://high-way.me/"" target=""_blank"" rel=""noopener"">https://high-way.me/</a>
 At this point only 1 provider can be used at the time.")]
     public Provider Provider { get; set; } = Provider.RealDebrid;
 
@@ -208,7 +213,8 @@ or
 or
 <a href=""https://torbox.app/settings/"" target=""_blank"" rel=""noopener"">https://torbox.app/settings/</a>
 or
-<a href=""https://debrid-link.com/webapp/apikey"" target=""_blank"" rel=""noopener"">https://debrid-link.com/webapp/apikey</a>")]
+<a href=""https://debrid-link.com/webapp/apikey"" target=""_blank"" rel=""noopener"">https://debrid-link.com/webapp/apikey</a>
+For HIGHWAY, log in to your HIGHWAY Center and create a token under ""Sitzungen"" &rarr; ""API-Token erstellen"".")]
     public String ApiKey { get; set; } = "";
 
     /// <summary>

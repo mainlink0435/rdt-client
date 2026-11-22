@@ -48,6 +48,7 @@ public static class DiConfig
         services.AddScoped<Torrents>();
         services.AddScoped<TorrentRunner>();
         services.AddScoped<DebridLinkClient>();
+        services.AddScoped<HighwayDebridClient>();
 
         services.AddSingleton<IDownloadableFileFilter, DownloadableFileFilter>();
         services.AddSingleton<ITrackerListGrabber, TrackerListGrabber>();
@@ -105,9 +106,9 @@ public static class DiConfig
         {
             ShouldHandle = args => args.Outcome switch
             {
-                { Exception: HttpRequestException } => PredicateResult.True(),
-                { Result.StatusCode: HttpStatusCode.RequestTimeout } => PredicateResult.True(),
-                { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
+                {Exception: HttpRequestException} => PredicateResult.True(),
+                {Result.StatusCode: HttpStatusCode.RequestTimeout} => PredicateResult.True(),
+                {Result.StatusCode: HttpStatusCode.TooManyRequests} => PredicateResult.True(),
                 _ => PredicateResult.False()
             },
             MaxRetryAttempts = 2,
@@ -116,20 +117,20 @@ public static class DiConfig
             UseJitter = true,
             DelayGenerator = args =>
             {
-                if (args.Outcome.Result is { StatusCode: HttpStatusCode.TooManyRequests } response)
+                if (args.Outcome.Result is {StatusCode: HttpStatusCode.TooManyRequests} response)
                 {
                     var delay = RateLimitHandler.GetRetryAfterDelay(response);
                     var timeout = TimeSpan.FromSeconds(Settings.Get.Provider.Timeout);
 
                     if (delay >= timeout)
                     {
-                        return new((TimeSpan?)null);
+                        return new((TimeSpan?) null);
                     }
 
                     return new(delay);
                 }
 
-                return new((TimeSpan?)null);
+                return new((TimeSpan?) null);
             }
         });
 

@@ -1,8 +1,8 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { saveAs } from 'file-saver-es';
-import { Torrent } from '../models/torrent.model';
+import { RealDebridStatus, Torrent } from '../models/torrent.model';
 import { TorrentService } from '../torrent.service';
 import { NgClass, DatePipe } from '@angular/common';
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
@@ -27,6 +27,7 @@ import { EMPTY, distinctUntilChanged, map, switchMap, tap, catchError } from 'rx
     DecodeURIPipe,
     FileSizePipe,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: true,
 })
 export class TorrentComponent implements OnInit {
@@ -35,6 +36,8 @@ export class TorrentComponent implements OnInit {
   private router = inject(Router);
   private torrentService = inject(TorrentService);
   private currentTorrentId: string | null = null;
+
+  protected readonly RealDebridStatus = RealDebridStatus;
 
   public torrent: Torrent;
 
@@ -122,7 +125,7 @@ export class TorrentComponent implements OnInit {
       ...currentTorrent,
       ...updatedTorrent,
       fileOrMagnet: updatedTorrent.fileOrMagnet ?? currentTorrent?.fileOrMagnet,
-      files: hasIncomingFiles ? updatedTorrent.files : currentTorrent?.files ?? [],
+      files: hasIncomingFiles ? updatedTorrent.files : (currentTorrent?.files ?? []),
       downloads: updatedTorrent.downloads ?? currentTorrent?.downloads ?? [],
     };
   }

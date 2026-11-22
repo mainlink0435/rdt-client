@@ -3,6 +3,42 @@
   width: 24em;
 }
 
+.selected-files {
+  margin-top: 0.5rem;
+
+  ul {
+    border: 1px solid #dbdbdb;
+    border-radius: 4px;
+    max-height: 12em;
+    overflow-y: auto;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.85rem;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid #f0f0f0;
+    }
+  }
+
+  .selected-files-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .delete {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+}
+
 .separator {
   display: flex;
   align-items: center;
